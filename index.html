@@ -500,25 +500,20 @@
                         this.isConnected = snapshot.val();
                         this.updateConnectionStatus();
                     });
-            
-                    // 전체 스케줄 데이터 실시간 감시 - 수정된 부분
+
+                    // 전체 스케줄 데이터 실시간 감시
                     const schedulesRef = ref(database, 'schedules');
                     onValue(schedulesRef, (snapshot) => {
-                        console.log('Firebase 데이터 업데이트:', snapshot.val()); // 디버깅용
                         this.allSchedules = snapshot.val() || {};
-                        // 선택된 그룹이 있을 때만 업데이트
-                        if (this.selectedGroup) {
-                            this.updateCalendarDisplay();
-                        }
+                        this.updateCalendarDisplay();
                     });
-            
+
                     this.showStatus('Firebase에 연결되었습니다!', 'success');
                 } catch (error) {
                     console.error('Firebase 초기화 오류:', error);
                     this.showStatus('Firebase 연결에 실패했습니다. 설정을 확인해주세요.', 'error');
                 }
             }
-
 
             updateConnectionStatus() {
                 if (this.isConnected) {
@@ -628,8 +623,6 @@
                 this.nameSelect.addEventListener('change', () => {
                     this.selectedName = this.nameSelect.value;
                     this.updateButtons();
-                    // 추가: 이름이 변경될 때마다 캘린더 업데이트
-                    this.updateCalendarDisplay();
                 });
 
                 this.loadButton.addEventListener('click', () => {
@@ -672,28 +665,6 @@
                 
                 this.selectedName = '';
                 this.updateButtons();
-
-                updateNameSelect() {
-                    this.nameSelect.innerHTML = '<option value="">이름을 선택하세요</option>';
-                    
-                    if (this.selectedGroup && this.groups[this.selectedGroup]) {
-                        this.nameSelect.disabled = false;
-                        this.groups[this.selectedGroup].forEach(name => {
-                            const option = document.createElement('option');
-                            option.value = name;
-                            option.textContent = name;
-                            this.nameSelect.appendChild(option);
-                        });
-                    } else {
-                        this.nameSelect.disabled = true;
-                    }
-                    
-                    this.selectedName = '';
-                    this.updateButtons();
-                    
-                    // 추가: 그룹이 변경될 때마다 캘린더 업데이트
-                    this.updateCalendarDisplay();
-                }
             }
 
             updateButtons() {
@@ -734,9 +705,6 @@
                     } else {
                         this.showStatus(`${this.selectedName}님의 저장된 스케줄이 없습니다.`, 'info');
                     }
-                    
-                    // 추가: 로드 후 캘린더 업데이트
-                    this.updateCalendarDisplay();
                 } catch (error) {
                     console.error('스케줄 로딩 오류:', error);
                     this.showStatus('스케줄을 불러오는 중 오류가 발생했습니다.', 'error');
@@ -744,7 +712,7 @@
                     this.loading.style.display = 'none';
                 }
             }
-            
+
             async saveSchedule() {
                 if (!this.selectedGroup || !this.selectedName) return;
                 
@@ -767,15 +735,8 @@
             updateCalendarDisplay() {
                 if (!this.selectedGroup) return;
                 
-                console.log('updateCalendarDisplay 호출됨'); // 디버깅용
-                console.log('현재 allSchedules:', this.allSchedules); // 디버깅용
-                console.log('선택된 그룹:', this.selectedGroup); // 디버깅용
-                
                 const results = this.calculateResults();
                 const memberCount = this.groups[this.selectedGroup].length;
-                
-                console.log('계산된 results:', results); // 디버깅용
-                console.log('멤버 수:', memberCount); // 디버깅용
                 
                 document.querySelectorAll('.time-cell').forEach(cell => {
                     const datetime = cell.dataset.datetime;
@@ -790,22 +751,20 @@
                         badge.style.display = 'none';
                     }
                     
-                    // 색상 초기화 (선택된 셀은 제외)
-                    if (!cell.classList.contains('selected')) {
-                        cell.classList.remove('result-8', 'result-7', 'result-6');
-                        
-                        // 결과 색상 적용
-                        if (count === memberCount) {
-                            cell.classList.add('result-8');
-                        } else if (count === memberCount - 1) {
-                            cell.classList.add('result-7');
-                        } else if (count === memberCount - 2) {
-                            cell.classList.add('result-6');
-                        }
+                    // 색상 초기화
+                    cell.classList.remove('result-8', 'result-7', 'result-6');
+                    
+                    // 결과 색상 적용
+                    if (count === memberCount) {
+                        cell.classList.add('result-8');
+                    } else if (count === memberCount - 1) {
+                        cell.classList.add('result-7');
+                    } else if (count === memberCount - 2) {
+                        cell.classList.add('result-6');
                     }
                 });
             }
-            
+
             showResults() {
                 if (!this.selectedGroup) return;
                 
