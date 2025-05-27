@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>그룹 스케줄 관리 시스템</title>
+    <title>그룹 스케줄 관리 시스템 (실시간 공유)</title>
     <style>
         * {
             margin: 0;
@@ -32,6 +32,7 @@
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
         }
 
         .header h1 {
@@ -43,6 +44,34 @@
         .header p {
             font-size: 1.1em;
             opacity: 0.9;
+        }
+
+        .connection-status {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e74c3c;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #27ae60;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
 
         .controls {
@@ -150,6 +179,7 @@
             font-weight: 500;
             border: 2px solid transparent;
             user-select: none;
+            position: relative;
         }
 
         .time-cell:hover {
@@ -176,6 +206,22 @@
         .time-cell.result-6 {
             background: #f1c40f !important;
             color: #2c3e50;
+        }
+
+        .time-cell .count-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
         }
 
         .legend {
@@ -220,6 +266,12 @@
             border: 1px solid #b3d7ff;
         }
 
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
         .modal {
             display: none;
             position: fixed;
@@ -259,6 +311,27 @@
             color: #666;
         }
 
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
             .control-group {
                 flex-direction: column;
@@ -278,8 +351,12 @@
 <body>
     <div class="container">
         <div class="header">
+            <div class="connection-status">
+                <div class="status-indicator" id="connectionIndicator"></div>
+                <span id="connectionStatus">연결 중...</span>
+            </div>
             <h1>그룹 스케줄 관리 시스템</h1>
-            <p>2025년 5월 27일 ~ 7월 4일 스케줄 관리</p>
+            <p>2025년 5월 27일 ~ 7월 4일 스케줄 관리 (실시간 공유)</p>
         </div>
 
         <div class="controls">
@@ -319,6 +396,11 @@
         </div>
 
         <div id="status" class="status" style="display: none;"></div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>데이터를 불러오는 중...</p>
+        </div>
 
         <div class="calendar-container">
             <div id="calendar" class="calendar"></div>
@@ -327,19 +409,19 @@
         <div class="legend">
             <div class="legend-item">
                 <div class="legend-color" style="background: #667eea;"></div>
-                <span>선택됨</span>
+                <span>내가 선택함</span>
             </div>
             <div class="legend-item">
                 <div class="legend-color" style="background: #e74c3c;"></div>
-                <span>8명 선택 (빨강)</span>
+                <span>전체 인원 선택 (빨강)</span>
             </div>
             <div class="legend-item">
                 <div class="legend-color" style="background: #f39c12;"></div>
-                <span>7명 선택 (주황)</span>
+                <span>전체-1명 선택 (주황)</span>
             </div>
             <div class="legend-item">
                 <div class="legend-color" style="background: #f1c40f;"></div>
-                <span>6명 선택 (노랑)</span>
+                <span>전체-2명 선택 (노랑)</span>
             </div>
         </div>
     </div>
@@ -353,7 +435,26 @@
         </div>
     </div>
 
-    <script>
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { getDatabase, ref, set, get, onValue, push } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js';
+
+        // Firebase 설정 (여기에 본인의 Firebase 설정을 입력하세요)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAg-eN2d_cZZvHO7fD8Wze-d7cUicvppe0",
+            authDomain: "ari-schedule-manager.firebaseapp.com",
+            databaseURL: "https://ari-schedule-manager-default-rtdb.firebaseio.com",
+            projectId: "ari-schedule-manager",
+            storageBucket: "ari-schedule-manager.firebasestorage.app",
+            messagingSenderId: "237036354808",
+            appId: "1:237036354808:web:edccf4d8af12414aaa0f0d",
+            measurementId: "G-4X99PJQKJK"};
+
+        // Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
         class ScheduleManager {
             constructor() {
                 this.groups = {
@@ -366,12 +467,14 @@
                 this.selectedName = '';
                 this.selectedCells = new Set();
                 this.isDragging = false;
-                this.dragMode = null; // 'select' or 'deselect'
+                this.dragMode = null;
+                this.allSchedules = {};
+                this.isConnected = false;
                 
                 this.initializeElements();
                 this.generateCalendar();
                 this.attachEventListeners();
-                this.loadFromStorage();
+                this.initializeFirebase();
             }
 
             initializeElements() {
@@ -384,11 +487,47 @@
                 this.status = document.getElementById('status');
                 this.resultModal = document.getElementById('resultModal');
                 this.resultCalendar = document.getElementById('resultCalendar');
+                this.loading = document.getElementById('loading');
+                this.connectionIndicator = document.getElementById('connectionIndicator');
+                this.connectionStatus = document.getElementById('connectionStatus');
+            }
+
+            async initializeFirebase() {
+                try {
+                    // 연결 테스트
+                    const testRef = ref(database, '.info/connected');
+                    onValue(testRef, (snapshot) => {
+                        this.isConnected = snapshot.val();
+                        this.updateConnectionStatus();
+                    });
+
+                    // 전체 스케줄 데이터 실시간 감시
+                    const schedulesRef = ref(database, 'schedules');
+                    onValue(schedulesRef, (snapshot) => {
+                        this.allSchedules = snapshot.val() || {};
+                        this.updateCalendarDisplay();
+                    });
+
+                    this.showStatus('Firebase에 연결되었습니다!', 'success');
+                } catch (error) {
+                    console.error('Firebase 초기화 오류:', error);
+                    this.showStatus('Firebase 연결에 실패했습니다. 설정을 확인해주세요.', 'error');
+                }
+            }
+
+            updateConnectionStatus() {
+                if (this.isConnected) {
+                    this.connectionIndicator.classList.add('connected');
+                    this.connectionStatus.textContent = '온라인';
+                } else {
+                    this.connectionIndicator.classList.remove('connected');
+                    this.connectionStatus.textContent = '오프라인';
+                }
             }
 
             generateCalendar() {
-                const startDate = new Date(2025, 4, 27); // 2025년 5월 27일
-                const endDate = new Date(2025, 6, 4);   // 2025년 7월 4일
+                const startDate = new Date(2025, 4, 27);
+                const endDate = new Date(2025, 6, 4);
                 
                 const dates = [];
                 for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
@@ -408,11 +547,10 @@
                     const timeGrid = document.createElement('div');
                     timeGrid.className = 'time-grid';
                     
-                    // 08:00 ~ 23:00 (16시간)
                     for (let hour = 8; hour <= 23; hour++) {
                         const timeCell = document.createElement('div');
                         timeCell.className = 'time-cell';
-                        timeCell.textContent = `${hour.toString().padStart(2, '0')}:00`;
+                        timeCell.innerHTML = `${hour.toString().padStart(2, '0')}:00<div class="count-badge" style="display: none;">0</div>`;
                         timeCell.dataset.datetime = `${this.formatDateForData(date)}_${hour}`;
                         
                         timeGrid.appendChild(timeCell);
@@ -499,7 +637,6 @@
                     this.showResults();
                 });
 
-                // 모달 닫기
                 document.querySelector('.close').addEventListener('click', () => {
                     this.resultModal.style.display = 'none';
                 });
@@ -544,37 +681,88 @@
                 });
             }
 
-            loadSchedule() {
+            async loadSchedule() {
                 if (!this.selectedGroup || !this.selectedName) return;
                 
-                const key = `schedule_${this.selectedGroup}_${this.selectedName}`;
-                const saved = localStorage.getItem(key);
+                this.loading.style.display = 'block';
                 
-                this.clearSelection();
-                
-                if (saved) {
-                    const schedule = JSON.parse(saved);
-                    schedule.forEach(datetime => {
-                        this.selectedCells.add(datetime);
-                        const cell = document.querySelector(`[data-datetime="${datetime}"]`);
-                        if (cell) {
-                            cell.classList.add('selected');
-                        }
-                    });
-                    this.showStatus(`${this.selectedName}님의 스케줄을 불러왔습니다.`, 'success');
-                } else {
-                    this.showStatus(`${this.selectedName}님의 저장된 스케줄이 없습니다.`, 'info');
+                try {
+                    const scheduleRef = ref(database, `schedules/${this.selectedGroup}/${this.selectedName}`);
+                    const snapshot = await get(scheduleRef);
+                    
+                    this.clearSelection();
+                    
+                    if (snapshot.exists()) {
+                        const schedule = snapshot.val();
+                        schedule.forEach(datetime => {
+                            this.selectedCells.add(datetime);
+                            const cell = document.querySelector(`[data-datetime="${datetime}"]`);
+                            if (cell) {
+                                cell.classList.add('selected');
+                            }
+                        });
+                        this.showStatus(`${this.selectedName}님의 스케줄을 불러왔습니다.`, 'success');
+                    } else {
+                        this.showStatus(`${this.selectedName}님의 저장된 스케줄이 없습니다.`, 'info');
+                    }
+                } catch (error) {
+                    console.error('스케줄 로딩 오류:', error);
+                    this.showStatus('스케줄을 불러오는 중 오류가 발생했습니다.', 'error');
+                } finally {
+                    this.loading.style.display = 'none';
                 }
             }
 
-            saveSchedule() {
+            async saveSchedule() {
                 if (!this.selectedGroup || !this.selectedName) return;
                 
-                const key = `schedule_${this.selectedGroup}_${this.selectedName}`;
-                const schedule = Array.from(this.selectedCells);
+                this.loading.style.display = 'block';
                 
-                localStorage.setItem(key, JSON.stringify(schedule));
-                this.showStatus(`${this.selectedName}님의 스케줄이 저장되었습니다.`, 'success');
+                try {
+                    const scheduleRef = ref(database, `schedules/${this.selectedGroup}/${this.selectedName}`);
+                    const schedule = Array.from(this.selectedCells);
+                    
+                    await set(scheduleRef, schedule);
+                    this.showStatus(`${this.selectedName}님의 스케줄이 저장되었습니다.`, 'success');
+                } catch (error) {
+                    console.error('스케줄 저장 오류:', error);
+                    this.showStatus('스케줄 저장 중 오류가 발생했습니다.', 'error');
+                } finally {
+                    this.loading.style.display = 'none';
+                }
+            }
+
+            updateCalendarDisplay() {
+                if (!this.selectedGroup) return;
+                
+                const results = this.calculateResults();
+                const memberCount = this.groups[this.selectedGroup].length;
+                
+                document.querySelectorAll('.time-cell').forEach(cell => {
+                    const datetime = cell.dataset.datetime;
+                    const count = results[datetime] || 0;
+                    const badge = cell.querySelector('.count-badge');
+                    
+                    // 카운트 표시
+                    if (count > 0) {
+                        badge.textContent = count;
+                        badge.style.display = 'flex';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                    
+                    // 색상 초기화
+                    cell.classList.remove('result-8', 'result-7', 'result-6');
+                    
+                    // 결과 색상 적용
+                    if (count === memberCount) {
+                        cell.classList.add('result-8');
+                    } else if (count === memberCount - 1) {
+                        cell.classList.add('result-7');
+                    } else if (count === memberCount - 2) {
+                        cell.classList.add('result-6');
+                    }
+                });
             }
 
             showResults() {
@@ -583,7 +771,6 @@
                 const memberCount = this.groups[this.selectedGroup].length;
                 const results = this.calculateResults();
                 
-                // 결과 캘린더 생성
                 this.generateResultCalendar(results, memberCount);
                 this.resultModal.style.display = 'block';
             }
@@ -591,16 +778,15 @@
             calculateResults() {
                 const results = {};
                 
-                this.groups[this.selectedGroup].forEach(name => {
-                    const key = `schedule_${this.selectedGroup}_${name}`;
-                    const saved = localStorage.getItem(key);
-                    if (saved) {
-                        const schedule = JSON.parse(saved);
-                        schedule.forEach(datetime => {
-                            results[datetime] = (results[datetime] || 0) + 1;
-                        });
-                    }
-                });
+                if (this.allSchedules[this.selectedGroup]) {
+                    Object.values(this.allSchedules[this.selectedGroup]).forEach(schedule => {
+                        if (Array.isArray(schedule)) {
+                            schedule.forEach(datetime => {
+                                results[datetime] = (results[datetime] || 0) + 1;
+                            });
+                        }
+                    });
+                }
                 
                 return results;
             }
@@ -633,9 +819,8 @@
                         const datetime = `${this.formatDateForData(date)}_${hour}`;
                         const count = results[datetime] || 0;
                         
-                        timeCell.textContent = `${hour.toString().padStart(2, '0')}:00 (${count}명)`;
+                        timeCell.textContent = `${hour.toString().padStart(2, '0')}:00 (${count}/${memberCount})`;
                         
-                        // 색상 적용
                         if (count === memberCount) {
                             timeCell.classList.add('result-8');
                         } else if (count === memberCount - 1) {
@@ -678,11 +863,6 @@
                 setTimeout(() => {
                     this.status.style.display = 'none';
                 }, 3000);
-            }
-
-            loadFromStorage() {
-                // 페이지 로드 시 기존 데이터 유지
-                console.log('데이터 저장소에서 기존 스케줄 데이터를 유지합니다.');
             }
         }
 
