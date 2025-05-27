@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>그룹 스케줄 관리 시스템</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-item label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9em;
+        }
+
+        select, input, button {
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .calendar-container {
+            padding: 30px;
+            overflow-x: auto;
+        }
+
+        .calendar {
+            display: grid;
+            gap: 20px;
+            min-width: 1200px;
+        }
+
+        .day-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+            border: 1px solid #e9ecef;
+        }
+
+        .day-header {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 1px;
+            background: #e9ecef;
+            padding: 1px;
+        }
+
+        .time-cell {
+            background: white;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9em;
+            font-weight: 500;
+            border: 2px solid transparent;
+            user-select: none;
+        }
+
+        .time-cell:hover {
+            background: #f8f9fa;
+            transform: scale(1.02);
+        }
+
+        .time-cell.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #4c63d2;
+        }
+
+        .time-cell.result-8 {
+            background: #e74c3c !important;
+            color: white;
+        }
+
+        .time-cell.result-7 {
+            background: #f39c12 !important;
+            color: white;
+        }
+
+        .time-cell.result-6 {
+            background: #f1c40f !important;
+            color: #2c3e50;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            padding: 20px;
+            background: #f8f9fa;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b3d7ff;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .time-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>그룹 스케줄 관리 시스템</h1>
+            <p>2025년 5월 27일 ~ 7월 4일 스케줄 관리</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <div class="control-item">
+                    <label for="groupSelect">그룹 선택</label>
+                    <select id="groupSelect">
+                        <option value="">그룹을 선택하세요</option>
+                        <option value="파이어">파이어</option>
+                        <option value="몽돌">몽돌</option>
+                        <option value="티라노">티라노</option>
+                    </select>
+                </div>
+                
+                <div class="control-item">
+                    <label for="nameSelect">이름 선택</label>
+                    <select id="nameSelect" disabled>
+                        <option value="">먼저 그룹을 선택하세요</option>
+                    </select>
+                </div>
+                
+                <div class="control-item">
+                    <label>&nbsp;</label>
+                    <button id="loadSchedule" disabled>스케줄 불러오기</button>
+                </div>
+                
+                <div class="control-item">
+                    <label>&nbsp;</label>
+                    <button id="saveSchedule" disabled>스케줄 저장하기</button>
+                </div>
+                
+                <div class="control-item">
+                    <label>&nbsp;</label>
+                    <button id="showResults" disabled>전체 결과 보기</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+
+        <div class="calendar-container">
+            <div id="calendar" class="calendar"></div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #667eea;"></div>
+                <span>선택됨</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #e74c3c;"></div>
+                <span>8명 선택 (빨강)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f39c12;"></div>
+                <span>7명 선택 (주황)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f1c40f;"></div>
+                <span>6명 선택 (노랑)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 결과 모달 -->
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>전체 스케줄 결과</h2>
+            <div id="resultCalendar"></div>
+        </div>
+    </div>
+
+    <script>
+        class ScheduleManager {
+            constructor() {
+                this.groups = {
+                    '파이어': ['이수민', '곽새아', '남승빈', '이건웅', '이우진', '문정하', '김수민', '이두현'],
+                    '몽돌': ['유강민', '전수빈', '신연우', '권민정', '장설희', '장석준', '하우혁', '김준우'],
+                    '티라노': ['박희빈', '남사웅', '백운용', '백승민', '신연경', '조시헌', '이현빈', '서성택', '이동건']
+                };
+                
+                this.selectedGroup = '';
+                this.selectedName = '';
+                this.selectedCells = new Set();
+                this.isDragging = false;
+                this.dragMode = null; // 'select' or 'deselect'
+                
+                this.initializeElements();
+                this.generateCalendar();
+                this.attachEventListeners();
+                this.loadFromStorage();
+            }
+
+            initializeElements() {
+                this.groupSelect = document.getElementById('groupSelect');
+                this.nameSelect = document.getElementById('nameSelect');
+                this.loadButton = document.getElementById('loadSchedule');
+                this.saveButton = document.getElementById('saveSchedule');
+                this.showResultsButton = document.getElementById('showResults');
+                this.calendar = document.getElementById('calendar');
+                this.status = document.getElementById('status');
+                this.resultModal = document.getElementById('resultModal');
+                this.resultCalendar = document.getElementById('resultCalendar');
+            }
+
+            generateCalendar() {
+                const startDate = new Date(2025, 4, 27); // 2025년 5월 27일
+                const endDate = new Date(2025, 6, 4);   // 2025년 7월 4일
+                
+                const dates = [];
+                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    dates.push(new Date(d));
+                }
+
+                this.calendar.innerHTML = '';
+                
+                dates.forEach(date => {
+                    const daySection = document.createElement('div');
+                    daySection.className = 'day-section';
+                    
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'day-header';
+                    dayHeader.textContent = this.formatDate(date);
+                    
+                    const timeGrid = document.createElement('div');
+                    timeGrid.className = 'time-grid';
+                    
+                    // 08:00 ~ 23:00 (16시간)
+                    for (let hour = 8; hour <= 23; hour++) {
+                        const timeCell = document.createElement('div');
+                        timeCell.className = 'time-cell';
+                        timeCell.textContent = `${hour.toString().padStart(2, '0')}:00`;
+                        timeCell.dataset.datetime = `${this.formatDateForData(date)}_${hour}`;
+                        
+                        timeGrid.appendChild(timeCell);
+                    }
+                    
+                    daySection.appendChild(dayHeader);
+                    daySection.appendChild(timeGrid);
+                    this.calendar.appendChild(daySection);
+                });
+                
+                this.attachCellEventListeners();
+            }
+
+            attachCellEventListeners() {
+                const cells = document.querySelectorAll('.time-cell');
+                
+                cells.forEach(cell => {
+                    cell.addEventListener('mousedown', (e) => {
+                        if (!this.selectedGroup || !this.selectedName) return;
+                        
+                        e.preventDefault();
+                        this.isDragging = true;
+                        
+                        const isSelected = cell.classList.contains('selected');
+                        this.dragMode = isSelected ? 'deselect' : 'select';
+                        
+                        this.toggleCell(cell);
+                    });
+                    
+                    cell.addEventListener('mouseenter', (e) => {
+                        if (!this.isDragging || !this.selectedGroup || !this.selectedName) return;
+                        
+                        this.toggleCell(cell);
+                    });
+                    
+                    cell.addEventListener('click', (e) => {
+                        if (!this.selectedGroup || !this.selectedName) {
+                            this.showStatus('먼저 그룹과 이름을 선택해주세요.', 'info');
+                            return;
+                        }
+                    });
+                });
+                
+                document.addEventListener('mouseup', () => {
+                    this.isDragging = false;
+                    this.dragMode = null;
+                });
+            }
+
+            toggleCell(cell) {
+                const datetime = cell.dataset.datetime;
+                const isCurrentlySelected = cell.classList.contains('selected');
+                
+                if (this.dragMode === 'select' && !isCurrentlySelected) {
+                    cell.classList.add('selected');
+                    this.selectedCells.add(datetime);
+                } else if (this.dragMode === 'deselect' && isCurrentlySelected) {
+                    cell.classList.remove('selected');
+                    this.selectedCells.delete(datetime);
+                }
+            }
+
+            attachEventListeners() {
+                this.groupSelect.addEventListener('change', () => {
+                    this.selectedGroup = this.groupSelect.value;
+                    this.updateNameSelect();
+                    this.clearSelection();
+                });
+
+                this.nameSelect.addEventListener('change', () => {
+                    this.selectedName = this.nameSelect.value;
+                    this.updateButtons();
+                });
+
+                this.loadButton.addEventListener('click', () => {
+                    this.loadSchedule();
+                });
+
+                this.saveButton.addEventListener('click', () => {
+                    this.saveSchedule();
+                });
+
+                this.showResultsButton.addEventListener('click', () => {
+                    this.showResults();
+                });
+
+                // 모달 닫기
+                document.querySelector('.close').addEventListener('click', () => {
+                    this.resultModal.style.display = 'none';
+                });
+
+                window.addEventListener('click', (e) => {
+                    if (e.target === this.resultModal) {
+                        this.resultModal.style.display = 'none';
+                    }
+                });
+            }
+
+            updateNameSelect() {
+                this.nameSelect.innerHTML = '<option value="">이름을 선택하세요</option>';
+                
+                if (this.selectedGroup && this.groups[this.selectedGroup]) {
+                    this.nameSelect.disabled = false;
+                    this.groups[this.selectedGroup].forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        option.textContent = name;
+                        this.nameSelect.appendChild(option);
+                    });
+                } else {
+                    this.nameSelect.disabled = true;
+                }
+                
+                this.selectedName = '';
+                this.updateButtons();
+            }
+
+            updateButtons() {
+                const hasSelection = this.selectedGroup && this.selectedName;
+                this.loadButton.disabled = !hasSelection;
+                this.saveButton.disabled = !hasSelection;
+                this.showResultsButton.disabled = !this.selectedGroup;
+            }
+
+            clearSelection() {
+                this.selectedCells.clear();
+                document.querySelectorAll('.time-cell.selected').forEach(cell => {
+                    cell.classList.remove('selected');
+                });
+            }
+
+            loadSchedule() {
+                if (!this.selectedGroup || !this.selectedName) return;
+                
+                const key = `schedule_${this.selectedGroup}_${this.selectedName}`;
+                const saved = localStorage.getItem(key);
+                
+                this.clearSelection();
+                
+                if (saved) {
+                    const schedule = JSON.parse(saved);
+                    schedule.forEach(datetime => {
+                        this.selectedCells.add(datetime);
+                        const cell = document.querySelector(`[data-datetime="${datetime}"]`);
+                        if (cell) {
+                            cell.classList.add('selected');
+                        }
+                    });
+                    this.showStatus(`${this.selectedName}님의 스케줄을 불러왔습니다.`, 'success');
+                } else {
+                    this.showStatus(`${this.selectedName}님의 저장된 스케줄이 없습니다.`, 'info');
+                }
+            }
+
+            saveSchedule() {
+                if (!this.selectedGroup || !this.selectedName) return;
+                
+                const key = `schedule_${this.selectedGroup}_${this.selectedName}`;
+                const schedule = Array.from(this.selectedCells);
+                
+                localStorage.setItem(key, JSON.stringify(schedule));
+                this.showStatus(`${this.selectedName}님의 스케줄이 저장되었습니다.`, 'success');
+            }
+
+            showResults() {
+                if (!this.selectedGroup) return;
+                
+                const memberCount = this.groups[this.selectedGroup].length;
+                const results = this.calculateResults();
+                
+                // 결과 캘린더 생성
+                this.generateResultCalendar(results, memberCount);
+                this.resultModal.style.display = 'block';
+            }
+
+            calculateResults() {
+                const results = {};
+                
+                this.groups[this.selectedGroup].forEach(name => {
+                    const key = `schedule_${this.selectedGroup}_${name}`;
+                    const saved = localStorage.getItem(key);
+                    if (saved) {
+                        const schedule = JSON.parse(saved);
+                        schedule.forEach(datetime => {
+                            results[datetime] = (results[datetime] || 0) + 1;
+                        });
+                    }
+                });
+                
+                return results;
+            }
+
+            generateResultCalendar(results, memberCount) {
+                const startDate = new Date(2025, 4, 27);
+                const endDate = new Date(2025, 6, 4);
+                
+                const dates = [];
+                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    dates.push(new Date(d));
+                }
+
+                this.resultCalendar.innerHTML = '';
+                
+                dates.forEach(date => {
+                    const daySection = document.createElement('div');
+                    daySection.className = 'day-section';
+                    
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'day-header';
+                    dayHeader.textContent = this.formatDate(date);
+                    
+                    const timeGrid = document.createElement('div');
+                    timeGrid.className = 'time-grid';
+                    
+                    for (let hour = 8; hour <= 23; hour++) {
+                        const timeCell = document.createElement('div');
+                        timeCell.className = 'time-cell';
+                        const datetime = `${this.formatDateForData(date)}_${hour}`;
+                        const count = results[datetime] || 0;
+                        
+                        timeCell.textContent = `${hour.toString().padStart(2, '0')}:00 (${count}명)`;
+                        
+                        // 색상 적용
+                        if (count === memberCount) {
+                            timeCell.classList.add('result-8');
+                        } else if (count === memberCount - 1) {
+                            timeCell.classList.add('result-7');
+                        } else if (count === memberCount - 2) {
+                            timeCell.classList.add('result-6');
+                        }
+                        
+                        timeGrid.appendChild(timeCell);
+                    }
+                    
+                    daySection.appendChild(dayHeader);
+                    daySection.appendChild(timeGrid);
+                    this.resultCalendar.appendChild(daySection);
+                });
+            }
+
+            formatDate(date) {
+                const days = ['일', '월', '화', '수', '목', '금', '토'];
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                const dayName = days[date.getDay()];
+                
+                return `${month}월 ${day}일 ${dayName}요일`;
+            }
+
+            formatDateForData(date) {
+                const year = date.getFullYear();
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                
+                return `${year}-${month}-${day}`;
+            }
+
+            showStatus(message, type) {
+                this.status.textContent = message;
+                this.status.className = `status ${type}`;
+                this.status.style.display = 'block';
+                
+                setTimeout(() => {
+                    this.status.style.display = 'none';
+                }, 3000);
+            }
+
+            loadFromStorage() {
+                // 페이지 로드 시 기존 데이터 유지
+                console.log('데이터 저장소에서 기존 스케줄 데이터를 유지합니다.');
+            }
+        }
+
+        // 애플리케이션 시작
+        document.addEventListener('DOMContentLoaded', () => {
+            new ScheduleManager();
+        });
+    </script>
+</body>
+</html>
