@@ -500,14 +500,18 @@
                         this.isConnected = snapshot.val();
                         this.updateConnectionStatus();
                     });
-
-                    // 전체 스케줄 데이터 실시간 감시
+            
+                    // 전체 스케줄 데이터 실시간 감시 - 개선된 버전
                     const schedulesRef = ref(database, 'schedules');
                     onValue(schedulesRef, (snapshot) => {
+                        console.log('Firebase 데이터 업데이트:', snapshot.val()); // 디버깅용
                         this.allSchedules = snapshot.val() || {};
-                        this.updateCalendarDisplay();
+                        // 선택된 그룹이 있을 때만 화면 업데이트
+                        if (this.selectedGroup) {
+                            this.updateCalendarDisplay();
+                        }
                     });
-
+            
                     this.showStatus('Firebase에 연결되었습니다!', 'success');
                 } catch (error) {
                     console.error('Firebase 초기화 오류:', error);
@@ -618,29 +622,33 @@
                     this.selectedGroup = this.groupSelect.value;
                     this.updateNameSelect();
                     this.clearSelection();
+                    // 그룹 선택 시 즉시 화면 업데이트
+                    if (this.selectedGroup) {
+                        this.updateCalendarDisplay();
+                    }
                 });
-
+            
                 this.nameSelect.addEventListener('change', () => {
                     this.selectedName = this.nameSelect.value;
                     this.updateButtons();
                 });
-
+            
                 this.loadButton.addEventListener('click', () => {
                     this.loadSchedule();
                 });
-
+            
                 this.saveButton.addEventListener('click', () => {
                     this.saveSchedule();
                 });
-
+            
                 this.showResultsButton.addEventListener('click', () => {
                     this.showResults();
                 });
-
+            
                 document.querySelector('.close').addEventListener('click', () => {
                     this.resultModal.style.display = 'none';
                 });
-
+            
                 window.addEventListener('click', (e) => {
                     if (e.target === this.resultModal) {
                         this.resultModal.style.display = 'none';
@@ -724,6 +732,12 @@
                     
                     await set(scheduleRef, schedule);
                     this.showStatus(`${this.selectedName}님의 스케줄이 저장되었습니다.`, 'success');
+                    
+                    // 저장 후 즉시 화면 업데이트
+                    setTimeout(() => {
+                        this.updateCalendarDisplay();
+                    }, 500);
+                    
                 } catch (error) {
                     console.error('스케줄 저장 오류:', error);
                     this.showStatus('스케줄 저장 중 오류가 발생했습니다.', 'error');
@@ -731,12 +745,18 @@
                     this.loading.style.display = 'none';
                 }
             }
-
+            
             updateCalendarDisplay() {
                 if (!this.selectedGroup) return;
                 
+                console.log('현재 그룹:', this.selectedGroup); // 디버깅용
+                console.log('전체 스케줄 데이터:', this.allSchedules); // 디버깅용
+                
                 const results = this.calculateResults();
                 const memberCount = this.groups[this.selectedGroup].length;
+                
+                console.log('계산된 결과:', results); // 디버깅용
+                console.log('멤버 수:', memberCount); // 디버깅용
                 
                 document.querySelectorAll('.time-cell').forEach(cell => {
                     const datetime = cell.dataset.datetime;
@@ -751,25 +771,33 @@
                         badge.style.display = 'none';
                     }
                     
-                    // 색상 초기화
+                    // 기존 결과 클래스 제거
                     cell.classList.remove('result-8', 'result-7', 'result-6');
                     
-                    // 결과 색상 적용
-                    if (count === memberCount) {
-                        cell.classList.add('result-8');
-                    } else if (count === memberCount - 1) {
-                        cell.classList.add('result-7');
-                    } else if (count === memberCount - 2) {
-                        cell.classList.add('result-6');
+                    // 결과 색상 적용 (내가 선택한 셀은 제외)
+                    if (!cell.classList.contains('selected')) {
+                        if (count === memberCount) {
+                            cell.classList.add('result-8');
+                        } else if (count === memberCount - 1 && count > 0) {
+                            cell.classList.add('result-7');
+                        } else if (count === memberCount - 2 && count > 0) {
+                            cell.classList.add('result-6');
+                        }
                     }
                 });
             }
 
             showResults() {
-                if (!this.selectedGroup) return;
+                if (!this.selectedGroup) {
+                    this.showStatus('먼저 그룹을 선택해주세요.', 'info');
+                    return;
+                }
                 
                 const memberCount = this.groups[this.selectedGroup].length;
                 const results = this.calculateResults();
+                
+                console.log('결과 보기 - 그룹:', this.selectedGroup, '멤버 수:', memberCount);
+                console.log('결과 데이터:', results);
                 
                 this.generateResultCalendar(results, memberCount);
                 this.resultModal.style.display = 'block';
@@ -778,8 +806,15 @@
             calculateResults() {
                 const results = {};
                 
-                if (this.allSchedules[this.selectedGroup]) {
-                    Object.values(this.allSchedules[this.selectedGroup]).forEach(schedule => {
+                console.log('결과 계산 시작 - 선택된 그룹:', this.selectedGroup);
+                console.log('전체 스케줄:', this.allSchedules);
+                
+                if (this.allSchedules && this.allSchedules[this.selectedGroup]) {
+                    const groupSchedules = this.allSchedules[this.selectedGroup];
+                    console.log('그룹 스케줄:', groupSchedules);
+                    
+                    Object.entries(groupSchedules).forEach(([name, schedule]) => {
+                        console.log(`${name}의 스케줄:`, schedule);
                         if (Array.isArray(schedule)) {
                             schedule.forEach(datetime => {
                                 results[datetime] = (results[datetime] || 0) + 1;
@@ -788,6 +823,7 @@
                     });
                 }
                 
+                console.log('최종 계산 결과:', results);
                 return results;
             }
 
