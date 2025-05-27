@@ -492,6 +492,7 @@
                 this.connectionStatus = document.getElementById('connectionStatus');
             }
 
+            // initializeFirebase 메서드 수정
             async initializeFirebase() {
                 try {
                     // 연결 테스트
@@ -500,17 +501,18 @@
                         this.isConnected = snapshot.val();
                         this.updateConnectionStatus();
                     });
-
-                    // initializeFirebase 메서드에서 이 부분을 수정
+            
+                    // 전체 스케줄 데이터 실시간 감시 - 항상 데이터는 불러오기
                     const schedulesRef = ref(database, 'schedules');
                     onValue(schedulesRef, (snapshot) => {
+                        console.log('Firebase에서 불러온 데이터:', snapshot.val()); // 디버깅
                         this.allSchedules = snapshot.val() || {};
-                        // selectedGroup이 있을 때만 업데이트
+                        // 그룹이 선택되어 있을 때만 화면 업데이트
                         if (this.selectedGroup) {
                             this.updateCalendarDisplay();
                         }
                     });
-
+            
                     this.showStatus('Firebase에 연결되었습니다!', 'success');
                 } catch (error) {
                     console.error('Firebase 초기화 오류:', error);
@@ -617,13 +619,15 @@
             }
 
             attachEventListeners() {
+                // groupSelect 이벤트 리스너 수정
                 this.groupSelect.addEventListener('change', () => {
                     this.selectedGroup = this.groupSelect.value;
                     this.updateNameSelect();
                     this.clearSelection();
-                    // 그룹이 선택되면 전체 결과 업데이트
-                    if (this.selectedGroup) {
+                    // 그룹이 선택되고, Firebase 데이터가 있으면 화면 업데이트
+                    if (this.selectedGroup && Object.keys(this.allSchedules).length > 0) {
                         this.updateCalendarDisplay();
+                    }
                 });
 
                 this.nameSelect.addEventListener('change', () => {
