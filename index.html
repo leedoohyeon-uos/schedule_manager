@@ -474,7 +474,7 @@
                 this.initializeElements();
                 this.generateCalendar();
                 this.attachEventListeners();
-                this.initializeFirebase();
+                this.();
             }
 
             initializeElements() {
@@ -501,11 +501,14 @@
                         this.updateConnectionStatus();
                     });
 
-                    // 전체 스케줄 데이터 실시간 감시
+                    // initializeFirebase 메서드에서 이 부분을 수정
                     const schedulesRef = ref(database, 'schedules');
                     onValue(schedulesRef, (snapshot) => {
                         this.allSchedules = snapshot.val() || {};
-                        this.updateCalendarDisplay();
+                        // selectedGroup이 있을 때만 업데이트
+                        if (this.selectedGroup) {
+                            this.updateCalendarDisplay();
+                        }
                     });
 
                     this.showStatus('Firebase에 연결되었습니다!', 'success');
@@ -618,6 +621,9 @@
                     this.selectedGroup = this.groupSelect.value;
                     this.updateNameSelect();
                     this.clearSelection();
+                    // 그룹이 선택되면 전체 결과 업데이트
+                    if (this.selectedGroup) {
+                        this.updateCalendarDisplay();
                 });
 
                 this.nameSelect.addEventListener('change', () => {
