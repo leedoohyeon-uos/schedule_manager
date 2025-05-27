@@ -532,26 +532,17 @@
                             const data = snapshot.val();
                             console.log('받은 실시간 데이터:', data);
                             this.allSchedules = data;
-                            
-                            // 선택된 그룹이 있다면 즉시 화면 업데이트
-                            if (this.selectedGroup) {
-                                console.log('선택된 그룹 있음, 화면 업데이트:', this.selectedGroup);
-                                setTimeout(() => {
-                                    this.updateCalendarDisplay();
-                                }, 100);
-                            }
                         } else {
                             console.log('실시간 데이터 없음');
                             this.allSchedules = {};
-                            
-                            // 데이터가 없을 때도 화면 클리어
-                            if (this.selectedGroup) {
-                                document.querySelectorAll('.time-cell').forEach(cell => {
-                                    cell.classList.remove('result-8', 'result-7', 'result-6');
-                                    const badge = cell.querySelector('.count-badge');
-                                    badge.style.display = 'none';
-                                });
-                            }
+                        }
+                        
+                        // 선택된 그룹이 있다면 즉시 화면 업데이트
+                        if (this.selectedGroup) {
+                            console.log('선택된 그룹 있음, 화면 업데이트:', this.selectedGroup);
+                            setTimeout(() => {
+                                this.updateCalendarDisplay();
+                            }, 100);
                         }
                     }, (error) => {
                         console.error('Firebase 실시간 리스너 오류:', error);
@@ -693,38 +684,19 @@
                     this.updateNameSelect();
                     this.clearSelection();
                     
-                    // 실시간 리스너 설정
-                    console.log('실시간 리스너 설정...');
-                    onValue(schedulesRef, (snapshot) => {
-                        console.log('=== Firebase 실시간 업데이트 ===');
-                        if (snapshot.exists()) {
-                            const data = snapshot.val();
-                            console.log('받은 실시간 데이터:', data);
-                            this.allSchedules = data;
-                            
-                            // 선택된 그룹이 있다면 즉시 화면 업데이트
-                            if (this.selectedGroup) {
-                                console.log('선택된 그룹 있음, 화면 업데이트:', this.selectedGroup);
-                                setTimeout(() => {
-                                    this.updateCalendarDisplay();
-                                }, 100);
-                            }
-                        } else {
-                            console.log('실시간 데이터 없음');
-                            this.allSchedules = {};
-                            
-                            // 데이터가 없을 때도 화면 클리어
-                            if (this.selectedGroup) {
-                                document.querySelectorAll('.time-cell').forEach(cell => {
-                                    cell.classList.remove('result-8', 'result-7', 'result-6');
-                                    const badge = cell.querySelector('.count-badge');
-                                    badge.style.display = 'none';
-                                });
-                            }
-                        }
-                    }, (error) => {
-                        console.error('Firebase 실시간 리스너 오류:', error);
-                    });
+                    // 그룹 선택 시 데이터 강제 새로고침 후 화면 업데이트
+                    if (this.selectedGroup) {
+                        console.log('그룹 선택됨, 데이터 새로고침 후 화면 업데이트');
+                        this.forceRefreshData();
+                    } else {
+                        // 그룹 선택 해제 시 모든 표시 제거
+                        document.querySelectorAll('.time-cell').forEach(cell => {
+                            cell.classList.remove('result-8', 'result-7', 'result-6');
+                            const badge = cell.querySelector('.count-badge');
+                            badge.style.display = 'none';
+                        });
+                    }
+                });
             
                 this.nameSelect.addEventListener('change', () => {
                     this.selectedName = this.nameSelect.value;
